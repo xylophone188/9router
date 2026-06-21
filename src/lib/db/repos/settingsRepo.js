@@ -36,6 +36,42 @@ const DEFAULT_SETTINGS = {
   rtkEnabled: true,
   cavemanEnabled: false,
   cavemanLevel: "full",
+
+  // ── Local custom features (melody's additions) ──
+  // Master switch: false → advisor/routing/blast/quota customizations disabled.
+  // Built-in RTK/Caveman stay controlled by their own flags.
+  localFeaturesEnabled: false,
+
+  // Advisor (virtual router): classify intent → route to high-intel or work combo
+  advisorEnabled: true,
+  advisorClassifier: "local-llama/advisor",
+  advisorHighCombo: "intelligence",
+  advisorWorkCombo: "work",
+  advisorReviewCombo: "intelligence",
+  advisorRuleThreshold: "rules-first",
+  forceAdvisorRouting: false,
+  advisorTiers: [
+    { provider: "claude", models: ["claude-opus-4-8"] },
+    { provider: "tkmyself-claude", models: ["gpt-5.5", "gpt-5.4"] },
+    { provider: "kimi", models: ["kimi-for-coding"] },
+  ],
+
+  // Blast strategy: concurrent key×model matrix
+  blastMaxModels: 0,
+  blastTimeoutMs: 30000,
+  blastBatchSize: 5,
+  blastBatchDelay: 500,
+  blastJudgeEnabled: false,
+  blastJudgeProvider: "anthropic",
+  blastJudgeModel: "claude-sonnet-4-20250514",
+  blastTopN: 3,
+
+  // Quota warm-up settings
+  quotaWarmUpEnabled: true,
+  quotaWarmUpProvider: "anthropic",
+  quotaWarmUpModel: "claude-sonnet-4-20250514",
+  quotaWarmUpThresholdPercent: 20,
+  quotaWarmUpMinHours: 4,
 };
 
 async function readRaw() {

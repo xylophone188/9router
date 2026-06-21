@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getComboById, updateCombo, deleteCombo, getComboByName } from "@/lib/localDb";
 import { resetComboRotation } from "open-sse/services/combo.js";
+import { isReservedAdvisorComboName } from "@/shared/constants/advisorMode.js";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
@@ -32,6 +33,9 @@ export async function PUT(request, { params }) {
     if (body.name) {
       if (!VALID_NAME_REGEX.test(body.name)) {
         return NextResponse.json({ error: "Name can only contain letters, numbers, -, _ and ." }, { status: 400 });
+      }
+      if (isReservedAdvisorComboName(body.name)) {
+        return NextResponse.json({ error: "Reserved combo name" }, { status: 400 });
       }
       
       // Check if name already exists (exclude current combo)

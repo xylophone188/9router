@@ -32,6 +32,7 @@ export default function APIPageClient({ machineId }) {
   const [requireLogin, setRequireLogin] = useState(true);
   const [hasPassword, setHasPassword] = useState(true);
   const [tunnelDashboardAccess, setTunnelDashboardAccess] = useState(false);
+  const [localFeaturesEnabled, setLocalFeaturesEnabled] = useState(false);
   const [rtkEnabled, setRtkEnabledState] = useState(true);
   const [cavemanEnabled, setCavemanEnabled] = useState(false);
   const [cavemanLevel, setCavemanLevel] = useState("full");
@@ -96,20 +97,6 @@ export default function APIPageClient({ machineId }) {
     setLocale(getCurrentLocale());
     return onLocaleChange(() => setLocale(getCurrentLocale()));
   }, []);
-
-  const isWenyanLocale = WENYAN_LOCALES.includes(locale);
-  const visibleCavemanLevels = isWenyanLocale
-    ? CAVEMAN_LEVELS
-    : CAVEMAN_LEVELS.filter((lvl) => !lvl.wenyan);
-
-  // Reset wenyan level to "ultra" when leaving a Chinese locale
-  useEffect(() => {
-    const current = CAVEMAN_LEVELS.find((lvl) => lvl.id === cavemanLevel);
-    if (current?.wenyan && !isWenyanLocale) {
-      setCavemanLevel("ultra");
-      patchSetting({ cavemanLevel: "ultra" });
-    }
-  }, [isWenyanLocale, cavemanLevel]);
 
   const { copied, copy } = useCopyToClipboard();
 
@@ -231,6 +218,7 @@ export default function APIPageClient({ machineId }) {
         setRequireLogin(data.requireLogin !== false);
         setHasPassword(data.hasPassword || false);
         setTunnelDashboardAccess(data.tunnelDashboardAccess || false);
+        setLocalFeaturesEnabled(!!data.localFeaturesEnabled);
         setRtkEnabledState(data.rtkEnabled !== false);
         setCavemanEnabled(!!data.cavemanEnabled);
         setCavemanLevel(data.cavemanLevel || "full");
@@ -316,6 +304,21 @@ export default function APIPageClient({ machineId }) {
   const handleCavemanLevel = (level) => {
     setCavemanLevel(level);
     patchSetting({ cavemanLevel: level });
+  };
+
+  const handleLocalFeaturesEnabled = async (value) => {
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ localFeaturesEnabled: value }),
+      });
+      if (res.ok) {
+        setLocalFeaturesEnabled(value);
+      }
+    } catch (error) {
+      console.log("Error updating localFeaturesEnabled:", error);
+    }
   };
 
   const fetchData = async () => {
@@ -755,6 +758,20 @@ export default function APIPageClient({ machineId }) {
     }
   }, []);
 
+  const isWenyanLocale = WENYAN_LOCALES.includes(locale);
+  const visibleCavemanLevels = isWenyanLocale
+    ? CAVEMAN_LEVELS
+    : CAVEMAN_LEVELS.filter((lvl) => !lvl.wenyan);
+
+  // Reset wenyan level to "ultra" when leaving a Chinese locale
+  useEffect(() => {
+    const current = CAVEMAN_LEVELS.find((lvl) => lvl.id === cavemanLevel);
+    if (current?.wenyan && !isWenyanLocale) {
+      setCavemanLevel("ultra");
+      patchSetting({ cavemanLevel: "ultra" });
+    }
+  }, [isWenyanLocale, cavemanLevel]);
+
   if (loading) {
     return (
       <div className="flex flex-col gap-8">
@@ -1013,6 +1030,30 @@ export default function APIPageClient({ machineId }) {
         )}
       </Card>
 
+      {/* Local custom features master switch */}
+      <Card id="local-features">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">tune</span>
+              Local Custom Features
+            </h2>
+            <p className="text-sm text-text-muted">
+              Master switch for advisor routing, blast judge, quota warm-up, and other local customizations.
+            </p>
+          </div>
+          <Toggle
+            checked={localFeaturesEnabled}
+            onChange={() => handleLocalFeaturesEnabled(!localFeaturesEnabled)}
+          />
+        </div>
+        <div className="mt-3 rounded-lg border border-border bg-surface-2/40 px-3 py-2 text-sm text-text-muted">
+          {localFeaturesEnabled
+            ? "Enabled: custom routing and local automation are active."
+            : "Disabled: custom routing and local automation are paused."}
+        </div>
+      </Card>
+
       {/* Token Saver (RTK + Caveman) */}
       <Card id="rtk">
         <div className="flex items-center justify-between mb-2">
@@ -1020,6 +1061,9 @@ export default function APIPageClient({ machineId }) {
             <span className="material-symbols-outlined text-primary">bolt</span>
             Token Saver
           </h2>
+          <p className="text-xs text-text-muted">
+            Built-in 9Router feature, independent of the local custom switch.
+          </p>
         </div>
         <div className="flex items-center justify-between pt-2 pb-4 border-b border-border gap-4">
           <div className="min-w-0 flex-1">

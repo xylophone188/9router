@@ -11,6 +11,31 @@ const SETTINGS_RESPONSE_HEADERS = {
   "Cache-Control": "no-store"
 };
 
+const LOCAL_FEATURE_KEYS = new Set([
+  "localFeaturesEnabled",
+  "advisorEnabled",
+  "advisorClassifier",
+  "advisorHighCombo",
+  "advisorWorkCombo",
+  "advisorReviewCombo",
+  "advisorRuleThreshold",
+  "forceAdvisorRouting",
+  "advisorTiers",
+  "blastMaxModels",
+  "blastTimeoutMs",
+  "blastBatchSize",
+  "blastBatchDelay",
+  "blastJudgeEnabled",
+  "blastJudgeProvider",
+  "blastJudgeModel",
+  "blastTopN",
+  "quotaWarmUpEnabled",
+  "quotaWarmUpProvider",
+  "quotaWarmUpModel",
+  "quotaWarmUpThresholdPercent",
+  "quotaWarmUpMinHours",
+]);
+
 export async function GET() {
   try {
     const settings = await getSettings();
@@ -35,57 +60,69 @@ export async function GET() {
 export async function PATCH(request) {
   try {
     const body = await request.json();
+    const updates = { ...body };
 
     // If updating password, hash it
-    if (body.newPassword) {
+    if (updates.newPassword) {
       const settings = await getSettings();
       const currentHash = settings.password;
 
       // Verify current password if it exists
       if (currentHash) {
-        if (!body.currentPassword) {
+        if (!updates.currentPassword) {
           return NextResponse.json({ error: "Current password required" }, { status: 400 });
         }
-        const isValid = await bcrypt.compare(body.currentPassword, currentHash);
+        const isValid = await bcrypt.compare(updates.currentPassword, currentHash);
         if (!isValid) {
           return NextResponse.json({ error: "Invalid current password" }, { status: 401 });
         }
       } else {
         // First time setting password, no current password needed
         // Allow empty currentPassword or default "123456"
-        if (body.currentPassword && body.currentPassword !== "123456") {
+        if (updates.currentPassword && updates.currentPassword !== "123456") {
            return NextResponse.json({ error: "Invalid current password" }, { status: 401 });
         }
       }
 
       const salt = await bcrypt.genSalt(10);
-      body.password = await bcrypt.hash(body.newPassword, salt);
-      delete body.newPassword;
-      delete body.currentPassword;
+      updates.password = await bcrypt.hash(updates.newPassword, salt);
+      delete updates.newPassword;
+      delete updates.currentPassword;
     }
 
-    if (Object.prototype.hasOwnProperty.call(body, "oidcClientSecret")) {
-      if (!body.oidcClientSecret || !String(body.oidcClientSecret).trim()) {
-        delete body.oidcClientSecret;
+    if (Object.prototype.hasOwnProperty.call(updates, "oidcClientSecret")) {
+      if (!updates.oidcClientSecret || !String(updates.oidcClientSecret).trim()) {
+        delete updates.oidcClientSecret;
       }
     }
 
-    const settings = await updateSettings(body);
+    const currentSettings = await getSettings();
+    if (updates.localFeaturesEnabled === false) {
+      for (const key of LOCAL_FEATURE_KEYS) {
+        if (key === "localFeaturesEnabled") continue;
+        if (Object.prototype.hasOwnProperty.call(updates, key)) continue;
+        if (Object.prototype.hasOwnProperty.call(currentSettings, key)) {
+          updates[key] = currentSettings[key];
+        }
+      }
+    }
+
+    const settings = await updateSettings(updates);
 
     // Apply outbound proxy settings immediately (no restart required)
     if (
-      Object.prototype.hasOwnProperty.call(body, "outboundProxyEnabled") ||
-      Object.prototype.hasOwnProperty.call(body, "outboundProxyUrl") ||
-      Object.prototype.hasOwnProperty.call(body, "outboundNoProxy")
+      Object.prototype.hasOwnProperty.call(updates, "outboundProxyEnabled") ||
+      Object.prototype.hasOwnProperty.call(updates, "outboundProxyUrl") ||
+      Object.prototype.hasOwnProperty.call(updates, "outboundNoProxy")
     ) {
       applyOutboundProxyEnv(settings);
     }
 
     // Invalidate combo rotation state when strategy settings change
     if (
-      Object.prototype.hasOwnProperty.call(body, "comboStrategy") ||
-      Object.prototype.hasOwnProperty.call(body, "comboStickyRoundRobinLimit") ||
-      Object.prototype.hasOwnProperty.call(body, "comboStrategies")
+      Object.prototype.hasOwnProperty.call(updates, "comboStrategy") ||
+      Object.prototype.hasOwnProperty.call(updates, "comboStickyRoundRobinLimit") ||
+      Object.prototype.hasOwnProperty.call(updates, "comboStrategies")
     ) {
       resetComboRotation();
     }
