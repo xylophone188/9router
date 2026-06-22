@@ -33,6 +33,7 @@ export default function APIPageClient({ machineId }) {
   const [requireLogin, setRequireLogin] = useState(true);
   const [hasPassword, setHasPassword] = useState(true);
   const [tunnelDashboardAccess, setTunnelDashboardAccess] = useState(false);
+  const [localFeaturesEnabled, setLocalFeaturesEnabled] = useState(false);
   const [rtkEnabled, setRtkEnabledState] = useState(true);
   const [headroomEnabled, setHeadroomEnabled] = useState(false);
   const [headroomUrl, setHeadroomUrl] = useState("http://localhost:8787");
@@ -106,20 +107,6 @@ export default function APIPageClient({ machineId }) {
     setLocale(getCurrentLocale());
     return onLocaleChange(() => setLocale(getCurrentLocale()));
   }, []);
-
-  const isWenyanLocale = WENYAN_LOCALES.includes(locale);
-  const visibleCavemanLevels = isWenyanLocale
-    ? CAVEMAN_LEVELS
-    : CAVEMAN_LEVELS.filter((lvl) => !lvl.wenyan);
-
-  // Reset wenyan level to "ultra" when leaving a Chinese locale
-  useEffect(() => {
-    const current = CAVEMAN_LEVELS.find((lvl) => lvl.id === cavemanLevel);
-    if (current?.wenyan && !isWenyanLocale) {
-      setCavemanLevel("ultra");
-      patchSetting({ cavemanLevel: "ultra" });
-    }
-  }, [isWenyanLocale, cavemanLevel]);
 
   const { copied, copy } = useCopyToClipboard();
 
@@ -241,6 +228,7 @@ export default function APIPageClient({ machineId }) {
         setRequireLogin(data.requireLogin !== false);
         setHasPassword(data.hasPassword || false);
         setTunnelDashboardAccess(data.tunnelDashboardAccess || false);
+        setLocalFeaturesEnabled(!!data.localFeaturesEnabled);
         setRtkEnabledState(data.rtkEnabled !== false);
         setHeadroomEnabled(!!data.headroomEnabled);
         setHeadroomUrl(data.headroomUrl || "http://localhost:8787");
@@ -397,6 +385,21 @@ export default function APIPageClient({ machineId }) {
   const handlePonytailLevel = (level) => {
     setPonytailLevel(level);
     patchSetting({ ponytailLevel: level });
+  };
+
+  const handleLocalFeaturesEnabled = async (value) => {
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ localFeaturesEnabled: value }),
+      });
+      if (res.ok) {
+        setLocalFeaturesEnabled(value);
+      }
+    } catch (error) {
+      console.log("Error updating localFeaturesEnabled:", error);
+    }
   };
 
   const fetchData = async () => {
@@ -836,6 +839,20 @@ export default function APIPageClient({ machineId }) {
     }
   }, []);
 
+  const isWenyanLocale = WENYAN_LOCALES.includes(locale);
+  const visibleCavemanLevels = isWenyanLocale
+    ? CAVEMAN_LEVELS
+    : CAVEMAN_LEVELS.filter((lvl) => !lvl.wenyan);
+
+  // Reset wenyan level to "ultra" when leaving a Chinese locale
+  useEffect(() => {
+    const current = CAVEMAN_LEVELS.find((lvl) => lvl.id === cavemanLevel);
+    if (current?.wenyan && !isWenyanLocale) {
+      setCavemanLevel("ultra");
+      patchSetting({ cavemanLevel: "ultra" });
+    }
+  }, [isWenyanLocale, cavemanLevel]);
+
   if (loading) {
     return (
       <div className="flex flex-col gap-8">
@@ -1107,6 +1124,194 @@ export default function APIPageClient({ machineId }) {
         )}
       </Card>
 
+      {/* Local custom features master switch */}
+      <Card id="local-features">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">tune</span>
+              Local Custom Features
+            </h2>
+            <p className="text-sm text-text-muted">
+              Master switch for advisor routing, blast judge, quota warm-up, and other local customizations.
+            </p>
+          </div>
+          <Toggle
+            checked={localFeaturesEnabled}
+            onChange={() => handleLocalFeaturesEnabled(!localFeaturesEnabled)}
+          />
+        </div>
+        <div className="mt-3 rounded-lg border border-border bg-surface-2/40 px-3 py-2 text-sm text-text-muted">
+          {localFeaturesEnabled
+            ? "Enabled: custom routing and local automation are active."
+            : "Disabled: custom routing and local automation are paused."}
+        </div>
+      </Card>
+
+
+      {/* Token Saver (RTK + Caveman) */}
+      <Card id="rtk">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary">bolt</span>
+            Token Saver
+          </h2>
+          <p className="text-xs text-text-muted">
+            Built-in 9Router feature, independent of the local custom switch.
+          </p>
+        </div>
+        <div className="flex items-center justify-between pt-2 pb-4 border-b border-border gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">
+              Compress tool output{" "}
+              <a
+                href="https://github.com/rtk-ai/rtk"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs font-normal text-primary underline hover:opacity-80"
+              >
+                (RTK)
+              </a>
+            </p>
+            <p className="text-sm text-text-muted">
+              git/grep/ls/tree/logs → 60-90% fewer input tokens
+            </p>
+          </div>
+          <Toggle
+            checked={rtkEnabled}
+            onChange={() => handleRtkEnabled(!rtkEnabled)}
+          />
+        </div>
+        <div className="flex items-center justify-between py-4 border-b border-border gap-4 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <p className="font-medium">
+                Compress context{" "}
+                <a
+                  href="https://github.com/chopratejas/headroom"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-normal text-primary underline hover:opacity-80"
+                >
+                  (Headroom)
+                </a>
+              </p>
+              <span className={`text-xs px-2 py-0.5 rounded ${headroomRunning ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
+                {headroomStatusLabel}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowHeadroomInstallModal(true)}
+                className="text-xs text-primary underline hover:opacity-80"
+              >
+                  {headroomRunning ? "Manage" : "Setup"}
+              </button>
+            </div>
+            <p className="text-sm text-text-muted mt-1">
+              Compress prompts via /v1/compress before routing to the model
+            </p>
+          </div>
+          <Toggle
+            checked={headroomEnabled && headroomRunning}
+            disabled={!headroomRunning}
+            onChange={() => handleHeadroomEnabled(!headroomEnabled)}
+          />
+        </div>
+        <div className="flex items-center justify-between pt-4 gap-4 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">
+              Compress LLM output{" "}
+              <a
+                href="https://github.com/JuliusBrussee/caveman"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs font-normal text-primary underline hover:opacity-80"
+              >
+                (Caveman)
+              </a>
+            </p>
+            <p className="text-sm text-text-muted">
+              Terse-style system prompt → ~65% fewer output tokens (up to 87%)
+            </p>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            {cavemanEnabled && (
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-1.5">
+                  {visibleCavemanLevels.map((lvl) => (
+                    <button
+                      key={lvl.id}
+                      onClick={() => handleCavemanLevel(lvl.id)}
+                      className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                        cavemanLevel === lvl.id
+                          ? "bg-primary text-white border-primary"
+                          : "bg-transparent border-border text-text-muted hover:bg-surface-2"
+                      }`}
+                      title={lvl.desc}
+                    >
+                      {lvl.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-primary">
+                  {CAVEMAN_LEVELS.find((lvl) => lvl.id === cavemanLevel)?.desc}
+                </p>
+              </div>
+            )}
+            <Toggle
+              checked={cavemanEnabled}
+              onChange={() => handleCavemanEnabled(!cavemanEnabled)}
+            />
+          </div>
+        </div>
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-border gap-4 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">
+              Lazy senior dev{" "}
+              <a
+                href="https://github.com/DietrichGebert/ponytail"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs font-normal text-primary underline hover:opacity-80"
+              >
+                (Ponytail)
+              </a>
+            </p>
+            <p className="text-sm text-text-muted">
+              Bias the model toward minimal code: YAGNI, reuse stdlib, deletion over addition
+            </p>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            {ponytailEnabled && (
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-1.5">
+                  {PONYTAIL_LEVELS.map((lvl) => (
+                    <button
+                      key={lvl.id}
+                      onClick={() => handlePonytailLevel(lvl.id)}
+                      className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                        ponytailLevel === lvl.id
+                          ? "bg-primary text-white border-primary"
+                          : "bg-transparent border-border text-text-muted hover:bg-surface-2"
+                      }`}
+                      title={lvl.desc}
+                    >
+                      {lvl.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-primary">
+                  {PONYTAIL_LEVELS.find((lvl) => lvl.id === ponytailLevel)?.desc}
+                </p>
+              </div>
+            )}
+            <Toggle
+              checked={ponytailEnabled}
+              onChange={() => handlePonytailEnabled(!ponytailEnabled)}
+            />
+          </div>
+        </div>
+      </Card>
       {/* API Keys */}
       <Card id="require-api-key">
         <div className="flex items-center justify-between mb-4">

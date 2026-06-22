@@ -10,11 +10,12 @@ async function setupDb() {
   process.env.DATA_DIR = tempDir;
   vi.resetModules();
 
-  const { createProviderNode } = await import("@/models/index.js");
+  const { createProviderNode, createProviderConnection } = await import("@/models/index.js");
   const { getModelInfo } = await import("@/sse/services/model.js");
 
   return {
     createProviderNode,
+    createProviderConnection,
     getModelInfo,
     cleanup() {
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -38,7 +39,7 @@ describe("model routing", () => {
     else process.env.DATA_DIR = originalDataDir;
   });
 
-  it("keeps built-in provider aliases ahead of compatible node prefixes", async () => {
+  it("keeps built-in provider aliases ahead of compatible node prefixes without connections", async () => {
     const ctx = await setupDb();
     cleanup = ctx.cleanup;
 
@@ -55,6 +56,33 @@ describe("model routing", () => {
       .resolves.toEqual({
         provider: "cloudflare-ai",
         model: "@cf/black-forest-labs/flux-2-klein-9b",
+      });
+  });
+
+  it("routes reserved compatible node prefix when that custom node has connections", async () => {
+    const ctx = await setupDb();
+    cleanup = ctx.cleanup;
+
+    await ctx.createProviderNode({
+      id: "anthropic-compatible-kimi-test",
+      type: "anthropic-compatible",
+      name: "Kimi Coding Anthropic",
+      prefix: "kimi",
+      baseUrl: "https://api.kimi.com/coding/v1",
+    });
+    await ctx.createProviderConnection({
+      id: "kimi-conn-test",
+      provider: "anthropic-compatible-kimi-test",
+      authType: "apikey",
+      name: "Kimi Key",
+      apiKey: "test-key",
+      isActive: true,
+    });
+
+    await expect(ctx.getModelInfo("kimi/kimi-for-coding"))
+      .resolves.toEqual({
+        provider: "anthropic-compatible-kimi-test",
+        model: "kimi-for-coding",
       });
   });
 

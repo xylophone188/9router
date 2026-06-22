@@ -21,6 +21,10 @@ import * as log from "../utils/logger.js";
 import { updateProviderCredentials, checkAndRefreshToken } from "../services/tokenRefresh.js";
 import { getProjectIdForConnection } from "open-sse/services/projectId.js";
 
+// ── Local custom features (gated by settings.localFeaturesEnabled) ─────
+import { classifyIntent } from "open-sse/services/advisor.js";
+import { ADVISOR_SYSTEM_PROMPT, buildReviewPrompt, isReservedAdvisorComboName, parseReviewResponse } from "../../shared/constants/advisorMode.js";
+
 /**
  * Handle chat completion request
  * Supports: OpenAI, Claude, Gemini, OpenAI Responses API formats
@@ -89,6 +93,89 @@ export async function handleChat(request, clientRawRequest = null) {
   const userAgent = request?.headers?.get("user-agent") || "";
   const bypassResponse = handleBypassRequest(body, modelStr, userAgent, !!settings.ccFilterNaming);
   if (bypassResponse) return bypassResponse.response || bypassResponse;
+
+  if (!settings.localFeaturesEnabled && isReservedAdvisorComboName(modelStr)) {
+    log.warn("ADVISOR", "Advisor virtual model requested while local features are disabled");
+    return errorResponse(HTTP_STATUS.BAD_REQUEST, "Advisor mode is not enabled");
+  }
+
+  // ── Local feature: Advisor virtual router ────────────────────────────
+  if (settings.localFeaturesEnabled) {
+    const shouldRouteViaAdvisor =
+      (modelStr === "advisor" || (settings.forceAdvisorRouting && !body._advisorRouted)) &&
+      !body._advisorRouted;
+
+    if (shouldRouteViaAdvisor) {
+      if (!settings.advisorEnabled) {
+        log.warn("ADVISOR", "Advisor mode disabled but model=advisor requested");
+        return errorResponse(HTTP_STATUS.BAD_REQUEST, "Advisor mode is not enabled");
+      }
+
+      const originalModel = modelStr !== "advisor" ? modelStr : null;
+      if (originalModel) log.info("ADVISOR", `forceAdvisorRouting: intercepting model=${originalModel}`);
+
+      const messages = body.messages || body.input || [];
+      const classification = await classifyIntent(messages, settings, {
+        callClassifier: (classifierBody, classifierModel) =>
+          handleSingleModelChat(classifierBody, classifierModel, clientRawRequest, request, apiKey),
+      });
+
+      body.model = classification.targetModel;
+      body._advisorRouted = true;
+      log.info("ADVISOR", `Routed ${originalModel ? `intercepted(${originalModel})` : "advisor"} → ${body.model} (intent=${classification.intent}, source=${classification.source}, reason=${classification.reason})`);
+      delete body._advisorRouted;
+
+      // Advisory-Review chain: work → intelligence review
+      if (classification.intent === "advisory-review") {
+        log.info("ADVISOR", "Advisory-review: executing work → intelligence chain");
+
+        const sanitizeResult = await import("open-sse/utils/messageSanitizer.js");
+        const workBody = { ...body, model: settings.advisorWorkCombo || "work" };
+        sanitizeResult.sanitizeMessages(workBody, "_generic", { stripBodyFields: true });
+
+        const workResult = await handleSingleModelChat(workBody, settings.advisorWorkCombo || "work", clientRawRequest, request, apiKey);
+
+        let workText = "";
+        if (workResult && typeof workResult.text === "function") workText = await workResult.text();
+        else if (typeof workResult === "string") workText = workResult;
+        else workText = JSON.stringify(workResult);
+
+        const questionText = messages.map(m => m.content || "").join("\n");
+        const reviewPrompt = buildReviewPrompt(questionText, workText);
+        const reviewBody = {
+          model: settings.advisorReviewCombo || "intelligence",
+          messages: [
+            { role: "system", content: ADVISOR_SYSTEM_PROMPT },
+            { role: "user", content: reviewPrompt },
+          ],
+          stream: false,
+          max_tokens: 200,
+        };
+
+        const reviewResult = await handleSingleModelChat(reviewBody, settings.advisorReviewCombo || "intelligence", clientRawRequest, request, apiKey);
+        let reviewText = "";
+        if (reviewResult && typeof reviewResult.text === "function") reviewText = await reviewResult.text();
+        else if (typeof reviewResult === "string") reviewText = reviewResult;
+        else reviewText = JSON.stringify(reviewResult);
+
+        const reviewParsed = parseReviewResponse(reviewText);
+        log.info("ADVISOR", `Advisory-review result: ${reviewParsed.passed ? "PASSED" : "FAILED"}`);
+
+        if (reviewParsed.passed) {
+          return new Response(workText, { status: 200, headers: { "Content-Type": "text/plain" } });
+        } else {
+          return new Response(reviewText, { status: 200, headers: { "Content-Type": "application/json" } });
+        }
+      }
+
+      // Route the normalized intent target, not the virtual entrypoint.
+      body.model = classification.targetModel;
+      if (classification.targetModel && classification.targetModel !== modelStr) {
+        return handleSingleModelChat(body, classification.targetModel, clientRawRequest, request, apiKey);
+      }
+    }
+  }
+  // ── End local feature ────────────────────────────────────────────────
 
   // Check if model is a combo (has multiple models with fallback)
   const comboModels = await getComboModels(modelStr);

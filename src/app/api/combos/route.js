@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCombos, createCombo, getComboByName } from "@/lib/localDb";
+import { isReservedAdvisorComboName } from "@/shared/constants/advisorMode.js";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,9 @@ export async function POST(request) {
     // Validate name format
     if (!VALID_NAME_REGEX.test(name)) {
       return NextResponse.json({ error: "Name can only contain letters, numbers, -, _ and ." }, { status: 400 });
+    }
+    if (isReservedAdvisorComboName(name)) {
+      return NextResponse.json({ error: "Reserved combo name" }, { status: 400 });
     }
 
     // Check if name already exists

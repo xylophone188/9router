@@ -88,6 +88,7 @@ async function tick() {
   g.running = true;
   try {
     const settings = await getSettings();
+    if (settings.localFeaturesEnabled === false) return;
     const enabledMap = settings[C.settingsKey]?.connections || {};
     if (Object.keys(enabledMap).length === 0) return;
 
@@ -115,3 +116,7 @@ export function startClaudeAutoPing() {
   g.interval = setInterval(() => { tick().catch(() => {}); }, C.tickIntervalMs);
   if (g.interval.unref) g.interval.unref();
 }
+
+export const __test__ = {
+  tick,
+};
