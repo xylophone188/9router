@@ -1,7 +1,7 @@
 <div align="center">
   <img src="../images/9router.png?1" alt="9Router Dashboard" width="800"/>
   
-  # 9Router - 免费 AI 路由器
+  # 9Router - 免费 AI 路由器（增强 Fork）
   
   **永不停歇的编程体验。智能回退，自动路由到免费和廉价的 AI 模型。**
   
@@ -11,12 +11,64 @@
     <img src="../public/providers/openclaw.png" alt="OpenClaw" width="80"/>
   </p>
   
+  [![Forked from decolua/9router](https://img.shields.io/badge/Fork-decolua%2F9router-blue)](https://github.com/decolua/9router)
   [![npm](https://img.shields.io/npm/v/9router.svg)](https://www.npmjs.com/package/9router)
   [![Downloads](https://img.shields.io/npm/dm/9router.svg)](https://www.npmjs.com/package/9router)
   [![License](https://img.shields.io/npm/l/9router.svg)](https://github.com/decolua/9router/blob/main/LICENSE)
   
   [🚀 快速开始](#-quick-start) • [💡 特性](#-key-features) • [📖 设置](#-setup) • [🌐 网站](https://9router.com)
 </div>
+
+---
+
+> ## 🔀 本 Fork 相对上游的增强
+> 
+> **上游仓库**：[decolua/9router](https://github.com/decolua/9router) — 所有上游功能完整保留，以下为新增。
+> 
+> ### 新增功能
+> 
+> | 功能 | 说明 | 来源 | 文件 |
+> |------|------|------|------|
+> | **OpenViking 共享记忆** | 所有 agent 通过 9router 自动共享记忆，无需每个 agent 单独接入 | [hermes-agent](https://github.com/NousResearch/hermes-agent) OV 集成模式 | `openvikingMemory.js` |
+> | **Ponytail Review 模式** | 只读代码分析：找根因、指问题、建议最小修复，不写代码 | hermes-agent Ponytail + 自定义 review | `endpointConstants.js` |
+> | **密钥脱敏** | tool_result 中 API key/token 正则替换为占位符，所有 agent 受益 | [llm-stream-guard](https://github.com/01laky/llm-stream-guard) 概念 | `tokenSaverMiddleware.js` |
+> | **Think Block 过滤** | 流式响应中 `thinking` XML 标签自动剥离，减输出 token | 社区 thinkstrip 工具 | `tokenSaverMiddleware.js` |
+> | **TPM/RPM 速率限制** | 滑动窗口 per-API-key 速率计数器，超限返回 HTTP 429 | [LiteLLM](https://github.com/BerriAI/litellm) 概念 | `rateQuota.js` |
+> | **预算硬上限** | 每请求/每日/每月 USD 封顶，超限返回 HTTP 402 | [TokenFirewall](https://github.com/Ruthwik000/tokenfirewall) 概念 | `rateQuota.js` |
+> | **语义缓存** | in-memory TTL 缓存 + OV embedding 相似查询命中 | [reverb](https://github.com/nobelk/reverb) + [llm-cacher](https://github.com/yar-solodovnikov/llm-cacher) 概念 | `rateQuota.js` |
+> 
+> ### Web UI 新增配置面板
+> 
+> Dashboard → Token Saver 页面新增：
+> - **OpenViking Memory**：开关、URL、API Key、User、Skip Models（死循环白名单，可配置）
+> - **Rate Limit & Budget**：RPM、TPM、单请求/每日/每月 USD 上限
+> - **Ponytail**：新增 Review 级别
+> 
+> 所有配置持久化到 SQLite，重启不丢失。
+> 
+> ### 本地全栈部署指南
+> 
+> 详见英文 [README.md](../README.md) 的 "Local Full-Strength Deployment Guide" 章节。
+> 简要步骤：
+> 1. `git clone` 本仓库 → `npm install` → `npm run build`
+> 2. 部署 OpenViking server（`--host 0.0.0.0 --port 1933`）
+> 3. 部署 Headroom Docker（`--protect-tool-results`）
+> 4. 设置环境变量：`OPENVIKING_ENABLED=true`、`OPENVIKING_URL`、`OPENVIKING_API_KEY` 等
+> 5. Web UI 配置 Token Saver 各项开关
+> 6. 所有 agent 指向 `http://localhost:20128/v1`
+> 
+> ### 致谢
+> 
+> - [decolua/9router](https://github.com/decolua/9router) — 上游 LLM 路由器
+> - [rtk-ai/rtk](https://github.com/rtk-ai/rtk) — Rust token-saver
+> - [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) — 极简输出
+> - [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) — 懒惰高级开发者
+> - [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) — OV 集成模式 + Ponytail Review
+> - [01laky/llm-stream-guard](https://github.com/01laky/llm-stream-guard) — 密钥脱敏概念
+> - [BerriAI/litellm](https://github.com/BerriAI/litellm) — 速率限制概念
+> - [Ruthwik000/tokenfirewall](https://github.com/Ruthwik000/tokenfirewall) — 预算守护概念
+> - [nobelk/reverb](https://github.com/nobelk/reverb) — 语义缓存概念
+> - [yar-solodovnikov/llm-cacher](https://github.com/yar-solodovnikov/llm-cacher) — 语义缓存概念
 
 ---
 
