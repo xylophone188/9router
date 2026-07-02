@@ -31,6 +31,11 @@ export default function TokenSaverClient() {
   const [openvikingEnabled, setOpenvikingEnabled] = useState(false);
   const [openvikingUrl, setOpenvikingUrl] = useState("http://localhost:1933");
   const [openvikingUser, setOpenvikingUser] = useState("hermes");
+  const [rateLimitMaxReqs, setRateLimitMaxReqs] = useState(0);
+  const [rateLimitMaxTokens, setRateLimitMaxTokens] = useState(0);
+  const [budgetDaily, setBudgetDaily] = useState(0);
+  const [budgetMonthly, setBudgetMonthly] = useState(0);
+  const [budgetHard, setBudgetHard] = useState(0);
   const [locale, setLocale] = useState("en");
 
   const { copied, copy } = useCopyToClipboard();
@@ -170,6 +175,27 @@ export default function TokenSaverClient() {
     patchSetting({ openvikingUser: user });
   };
 
+  const handleRateLimitReqs = (val) => {
+    setRateLimitMaxReqs(Number(val));
+    patchSetting({ rateLimitMaxRequests: Number(val) });
+  };
+  const handleRateLimitTokens = (val) => {
+    setRateLimitMaxTokens(Number(val));
+    patchSetting({ rateLimitMaxTokens: Number(val) });
+  };
+  const handleBudgetDaily = (val) => {
+    setBudgetDaily(Number(val));
+    patchSetting({ budgetDaily: Number(val) });
+  };
+  const handleBudgetMonthly = (val) => {
+    setBudgetMonthly(Number(val));
+    patchSetting({ budgetMonthly: Number(val) });
+  };
+  const handleBudgetHard = (val) => {
+    setBudgetHard(Number(val));
+    patchSetting({ budgetHard: Number(val) });
+  };
+
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -186,6 +212,11 @@ export default function TokenSaverClient() {
           setOpenvikingEnabled(!!data.openvikingEnabled);
           if (data.openvikingUrl) setOpenvikingUrl(data.openvikingUrl);
           if (data.openvikingUser) setOpenvikingUser(data.openvikingUser);
+          if (data.rateLimitMaxRequests) setRateLimitMaxReqs(data.rateLimitMaxRequests);
+          if (data.rateLimitMaxTokens) setRateLimitMaxTokens(data.rateLimitMaxTokens);
+          if (data.budgetDaily) setBudgetDaily(data.budgetDaily);
+          if (data.budgetMonthly) setBudgetMonthly(data.budgetMonthly);
+          if (data.budgetHard) setBudgetHard(data.budgetHard);
           refreshHeadroomStatus();
         }
       } catch {}
@@ -419,6 +450,73 @@ export default function TokenSaverClient() {
               </div>
             </div>
           )}
+        </div>
+      </Card>
+
+      <Card title="Rate Limit & Budget">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium">Rate Limit</p>
+            <p className="text-xs text-text-muted">Sliding-window per API key</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium">Max RPM</p>
+                <Input
+                  type="number" min="0"
+                  value={rateLimitMaxReqs}
+                  onChange={(e) => handleRateLimitReqs(e.target.value)}
+                  placeholder="0 = unlimited"
+                  className="font-mono text-xs"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium">Max TPM</p>
+                <Input
+                  type="number" min="0"
+                  value={rateLimitMaxTokens}
+                  onChange={(e) => handleRateLimitTokens(e.target.value)}
+                  placeholder="0 = unlimited"
+                  className="font-mono text-xs"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium">Budget Hard Ceiling (USD)</p>
+            <p className="text-xs text-text-muted">Block requests that exceed limit</p>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium">Per Request</p>
+                <Input
+                  type="number" min="0" step="0.01"
+                  value={budgetHard}
+                  onChange={(e) => handleBudgetHard(e.target.value)}
+                  placeholder="0 = no limit"
+                  className="font-mono text-xs"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium">Daily</p>
+                <Input
+                  type="number" min="0" step="0.01"
+                  value={budgetDaily}
+                  onChange={(e) => handleBudgetDaily(e.target.value)}
+                  placeholder="0 = unlimited"
+                  className="font-mono text-xs"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium">Monthly</p>
+                <Input
+                  type="number" min="0" step="0.01"
+                  value={budgetMonthly}
+                  onChange={(e) => handleBudgetMonthly(e.target.value)}
+                  placeholder="0 = unlimited"
+                  className="font-mono text-xs"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </Card>
 

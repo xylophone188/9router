@@ -215,7 +215,25 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   const apiKey = credentials?.apiKey || "";
   try {
     const { preRequestCheck } = await import("../rtk/rateQuota.js");
-    const preCheck = preRequestCheck(apiKey, providerConfig?.rateLimit || {});
+    // Read quota/budget settings from DB
+    const D = require("/app/node_modules/better-sqlite3");
+    const db = new D("/app/data/db/data.sqlite");
+    const s = db.prepare("SELECT data FROM settings WHERE id=1").get();
+    db.close();
+    const settings = s ? JSON.parse(s.data) : {};
+    const quotaConfig = {
+      rateLimit: {
+        maxRequests: settings.rateLimitMaxRequests || 0,
+        maxTokens: settings.rateLimitMaxTokens || 0,
+      },
+      budget: {
+        daily: settings.budgetDaily || 0,
+        monthly: settings.budgetMonthly || 0,
+        hard: settings.budgetHard || 0,
+        estimatedCost: 0,
+      },
+    };
+    const preCheck = preRequestCheck(apiKey, quotaConfig);
     if (!preCheck.allowed) {
       log?.warn?.("QUOTA", `${preCheck.status} ${preCheck.error}`);
       return { status: preCheck.status, error: preCheck.error, retryAfter: preCheck.retryAfter, headers: {} };

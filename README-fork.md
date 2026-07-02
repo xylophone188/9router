@@ -33,9 +33,10 @@
 - In-memory response cache with TTL (1h default)
 - OV-backed semantic search layer for similar-prompt cache hits
 
-### 🌐 Web UI Enhancements
-- Ponytail "Review" level (read-only code analysis)
-- OpenViking Memory toggle + configuration card
+| Budget Guard | Daily/monthly/request hard ceiling in USD | Rate Limit Card |
+
+### 🌐 Web UI
+- Token Saver dashboard: Ponytail "Review" level, OpenViking Memory toggle, Rate Limit & Budget config
 
 ## Prerequisites
 - Node.js 20+
