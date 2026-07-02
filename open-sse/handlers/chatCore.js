@@ -161,6 +161,13 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   const rtkLine = formatRtkLog(rtkStats);
   if (rtkLine) console.log(rtkLine);
 
+  // Token-saver middleware: mask secrets in tool_result content before sending to provider
+  // This runs at the 9router layer so all agents benefit without per-agent config.
+  try {
+    const { maskSecretsInBody } = await import("../rtk/tokenSaverMiddleware.js");
+    maskSecretsInBody(translatedBody);
+  } catch (e) { /* fail open — middleware is optional */ }
+
   // Headroom: optional external proxy compression; fail open if proxy is absent.
   const headroomDiagnostics = {};
   const headroomStats = await compressWithHeadroom(translatedBody, { enabled: headroomEnabled, url: headroomUrl, model: upstreamModel, format: finalFormat, compressUserMessages: headroomCompressUserMessages, diagnostics: headroomDiagnostics });
@@ -184,6 +191,36 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     injectPonytail(translatedBody, finalFormat, ponytailLevel);
     log?.debug?.("PONYTAIL", `${ponytailLevel} | ${finalFormat}`);
   }
+
+  // OpenViking: inject shared memories from central memory store (all agents benefit)
+  try {
+    const { injectOpenVikingMemory } = await import("../rtk/openvikingMemory.js");
+    const ovOpts = {
+      enabled: !!process.env.OPENVIKING_ENABLED || true,
+      url: process.env.OPENVIKING_URL || "http://localhost:1933",
+      apiKey: process.env.OPENVIKING_API_KEY || "",
+      account: process.env.OPENVIKING_ACCOUNT || "default",
+      user: process.env.OPENVIKING_USER || "shared",
+      agent: process.env.OPENVIKING_AGENT || "9router",
+      limit: 5,
+      scoreThreshold: 0.3,
+    };
+    const ovResult = await injectOpenVikingMemory(translatedBody, finalFormat, ovOpts);
+    if (ovResult) {
+      log?.debug?.("OPENVIKING", `injected ${ovResult.count} memories | query="${ovResult.query.slice(0, 40)}..."`);
+    }
+  } catch (e) { /* fail open — OpenViking is optional */ }
+
+  // Rate limit + budget pre-check
+  const apiKey = credentials?.apiKey || "";
+  try {
+    const { preRequestCheck } = await import("../rtk/rateQuota.js");
+    const preCheck = preRequestCheck(apiKey, providerConfig?.rateLimit || {});
+    if (!preCheck.allowed) {
+      log?.warn?.("QUOTA", `${preCheck.status} ${preCheck.error}`);
+      return { status: preCheck.status, error: preCheck.error, retryAfter: preCheck.retryAfter, headers: {} };
+    }
+  } catch (e) { /* quota check is optional */ }
 
   const executor = getExecutor(provider);
   trackPendingRequest(model, provider, connectionId, true);

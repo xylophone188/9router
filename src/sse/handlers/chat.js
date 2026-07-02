@@ -23,6 +23,10 @@ import { getProjectIdForConnection } from "open-sse/services/projectId.js";
 
 // ── Local custom features (gated by settings.localFeaturesEnabled) ─────
 import { classifyIntent } from "open-sse/services/advisor.js";
+// import { logShadowResult, initShadowDb } from "../services/advisorShadow.js";
+// import { extractRecentText } from "../services/advisorEmbedding.js";
+
+let _shadowInitialized = false;
 import { ADVISOR_SYSTEM_PROMPT, buildReviewPrompt, isReservedAdvisorComboName, parseReviewResponse } from "../../shared/constants/advisorMode.js";
 
 /**
@@ -106,6 +110,8 @@ export async function handleChat(request, clientRawRequest = null) {
       !body._advisorRouted;
 
     if (shouldRouteViaAdvisor) {
+      // init shadow DB on first advisor request
+      if (settings.advisorL2Enabled) getShadowDb();
       if (!settings.advisorEnabled) {
         log.warn("ADVISOR", "Advisor mode disabled but model=advisor requested");
         return errorResponse(HTTP_STATUS.BAD_REQUEST, "Advisor mode is not enabled");
@@ -124,6 +130,18 @@ export async function handleChat(request, clientRawRequest = null) {
       body._advisorRouted = true;
       log.info("ADVISOR", `Routed ${originalModel ? `intercepted(${originalModel})` : "advisor"} → ${body.model} (intent=${classification.intent}, source=${classification.source}, reason=${classification.reason})`);
       delete body._advisorRouted;
+
+      // L2 shadow: fire-and-forget (inline, no external import)
+      if (settings.advisorL2Enabled) {
+        const text = extractText(messages, 5);
+        if (text.trim()) {
+          const db = getShadowDb();
+          if (db) {
+            db.prepare("INSERT INTO shadow_log (ts, request_text, l1_intent, final_intent, agreement) VALUES (?,?,?,?,?)")
+              .run(Date.now(), text.slice(0, 4000), classification.intent, classification.intent, "L1-only").catch(()=>{});
+          }
+        }
+      }
 
       // Advisory-Review chain: work → intelligence review
       if (classification.intent === "advisory-review") {

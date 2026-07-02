@@ -145,26 +145,38 @@ describe("compatible provider connections API", () => {
     });
   });
 
-  it("returns 400 for a duplicate connection on the same compatible node", async () => {
+  it("allows multiple connections on the same compatible node", async () => {
     const ctx = await setupTestContext({
-      id: "openai-compatible-duplicate-test",
+      id: "openai-compatible-multi",
       type: "openai-compatible",
-      name: "Duplicate Guard Node",
-      prefix: "dup",
+      name: "Multi Connection Test Node",
+      prefix: "mct",
       apiType: "chat",
-      baseUrl: "https://duplicate-guard.test/v1",
+      baseUrl: "https://multi.test/v1",
     });
     cleanup = ctx.cleanup;
 
-    const firstResponse = await ctx.POST(makeRequest(ctx.node.id));
-    const secondResponse = await ctx.POST(makeRequest(ctx.node.id));
-    const secondBody = await secondResponse.json();
-    const storedConnections = await ctx.getProviderConnections({ provider: ctx.node.id });
+    // First connection
+    const response1 = await ctx.POST(makeRequest(ctx.node.id));
+    const body1 = await response1.json();
+    expect(response1.status).toBe(201);
 
-    expect(firstResponse.status).toBe(201);
-    expect(secondResponse.status).toBe(400);
-    expect(secondBody.error).toContain("Only one connection is allowed");
-    expect(storedConnections).toHaveLength(1);
-    expectCompatibleConnection(storedConnections[0], ctx.node, { apiType: "chat" });
-  });
+    // Second connection should also succeed
+    const request2 = new Request("https://9router.local/api/providers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: ctx.node.id,
+        apiKey: "sk-second-test-key",
+        name: "Second Connection",
+        defaultModel: "test-model",
+      }),
+    });
+    const response2 = await ctx.POST(request2);
+    const body2 = await response2.json();
+    expect(response2.status).toBe(201);
+
+    const storedConnections = await ctx.getProviderConnections({ provider: ctx.node.id });
+    expect(storedConnections).toHaveLength(2);
+  });;
 });

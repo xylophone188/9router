@@ -15,6 +15,26 @@ const STRIP_RULES = [
 ];
 
 // Test a rule's match (regex or predicate) against the model id.
+// Per-provider max_tokens caps keyed by baseUrl substring.
+// SenseNova 6.7 Flash-Lite rejects max_tokens > 65536 with HTTP 400.
+const MAX_TOKENS_CAPS = [
+  { baseUrlMatch: "sensenova", cap: 65536 },
+];
+
+// Cap max_tokens for providers with known ceilings to prevent upstream 400s.
+export function capMaxTokens(provider, model, body, baseUrl) {
+  if (!body || typeof body !== "object") return body;
+  if (typeof body.max_tokens !== "number") return body;
+  const url = baseUrl || "";
+  for (const rule of MAX_TOKENS_CAPS) {
+    if (rule.baseUrlMatch && url.includes(rule.baseUrlMatch) && body.max_tokens > rule.cap) {
+      body.max_tokens = rule.cap;
+      break;
+    }
+  }
+  return body;
+}
+
 function matches(rule, model) {
   if (!rule.match) return true;
   return typeof rule.match === "function" ? rule.match(model) : rule.match.test(model);

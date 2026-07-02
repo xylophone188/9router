@@ -513,10 +513,6 @@ async function ensureUserOwnedDir(dir) {
 /** Check if running daemon uses TUN mode (Funnel TLS requires TUN). */
 function isDaemonTunMode() {
   try {
-    const psSystem = execSync(`pgrep -af "tailscaled.*${SYSTEM_TAILSCALE_SOCKET}"`, { encoding: "utf8", timeout: 2000 }).trim();
-    if (psSystem && !psSystem.includes("--tun=userspace-networking")) return true;
-  } catch {}
-  try {
     const ps = execSync(`pgrep -af "tailscaled.*${TAILSCALE_SOCKET}"`, { encoding: "utf8", timeout: 2000 }).trim();
     if (!ps) return null;
     return !ps.includes("--tun=userspace-networking");

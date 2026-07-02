@@ -51,11 +51,15 @@ const DEFAULT_SETTINGS = {
   // Advisor (virtual router): classify intent → route to high-intel or work combo
   advisorEnabled: true,
   advisorClassifier: "local-llama/advisor",
-  advisorHighCombo: "intelligence",
-  advisorWorkCombo: "work",
-  advisorReviewCombo: "intelligence",
+  advisorHighCombo: "hermes-yushi",
+  advisorWorkCombo: "hermes-shangshu",
+  advisorReviewCombo: "hermes-yushi",
   advisorRuleThreshold: "rules-first",
   forceAdvisorRouting: false,
+  // Advisor Embedding L2 分类器（combo 模式）
+  advisorL2Enabled: true,
+  advisorL2Active: false,
+  advisorL2Combo: "semantic-analysis",
   advisorTiers: [
     { provider: "claude", models: ["claude-opus-4-8"] },
     { provider: "tkmyself-claude", models: ["gpt-5.5", "gpt-5.4"] },

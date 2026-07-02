@@ -32,9 +32,6 @@ export async function handleRerank(request) {
   // Auth check
   const apiKey = extractApiKey(request);
   const settings = await getSettings();
-  if (settings.localFeaturesEnabled === false) {
-    return errorResponse(HTTP_STATUS.NOT_FOUND, "Rerank is disabled");
-  }
   if (settings.requireApiKey) {
     if (!apiKey) return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Missing API key");
     const valid = await isValidApiKey(apiKey);

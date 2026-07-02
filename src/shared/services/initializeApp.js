@@ -156,7 +156,7 @@ async function safeRestartTunnel(reason) {
 
   console.log(`[Tunnel] safeRestart (${reason}) — tunnel unreachable${force ? " [force]" : ""}`);
   try {
-    await enableTunnel();
+    await enableTunnel(20129);
     svc.lastRestartAt = Date.now();
     console.log("[Tunnel] restart success");
   } catch (err) {

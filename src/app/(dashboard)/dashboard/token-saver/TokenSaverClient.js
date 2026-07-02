@@ -28,6 +28,9 @@ export default function TokenSaverClient() {
   const [cavemanLevel, setCavemanLevel] = useState("full");
   const [ponytailEnabled, setPonytailEnabled] = useState(false);
   const [ponytailLevel, setPonytailLevel] = useState("full");
+  const [openvikingEnabled, setOpenvikingEnabled] = useState(false);
+  const [openvikingUrl, setOpenvikingUrl] = useState("http://localhost:1933");
+  const [openvikingUser, setOpenvikingUser] = useState("hermes");
   const [locale, setLocale] = useState("en");
 
   const { copied, copy } = useCopyToClipboard();
@@ -152,6 +155,21 @@ export default function TokenSaverClient() {
     patchSetting({ ponytailLevel: level });
   };
 
+  const handleOpenvikingEnabled = (value) => {
+    setOpenvikingEnabled(value);
+    patchSetting({ openvikingEnabled: value, openvikingUrl, openvikingUser });
+  };
+
+  const handleOpenvikingUrl = (url) => {
+    setOpenvikingUrl(url);
+    patchSetting({ openvikingUrl: url });
+  };
+
+  const handleOpenvikingUser = (user) => {
+    setOpenvikingUser(user);
+    patchSetting({ openvikingUser: user });
+  };
+
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -165,6 +183,9 @@ export default function TokenSaverClient() {
           setCavemanLevel(data.cavemanLevel || "full");
           setPonytailEnabled(!!data.ponytailEnabled);
           setPonytailLevel(data.ponytailLevel || "full");
+          setOpenvikingEnabled(!!data.openvikingEnabled);
+          if (data.openvikingUrl) setOpenvikingUrl(data.openvikingUrl);
+          if (data.openvikingUser) setOpenvikingUser(data.openvikingUser);
           refreshHeadroomStatus();
         }
       } catch {}
@@ -357,6 +378,47 @@ export default function TokenSaverClient() {
               onChange={() => handlePonytailEnabled(!ponytailEnabled)}
             />
           </div>
+        </div>
+      </Card>
+
+      <Card title="OpenViking Memory">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium">Shared Memory</p>
+              <p className="text-xs text-text-muted">
+                Inject cross-agent memories from OpenViking into system prompt
+              </p>
+            </div>
+            <Toggle
+              checked={openvikingEnabled}
+              onChange={() => handleOpenvikingEnabled(!openvikingEnabled)}
+            />
+          </div>
+          {openvikingEnabled && (
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium">Server URL</p>
+                <Input
+                  value={openvikingUrl}
+                  onChange={(e) => setOpenvikingUrl(e.target.value)}
+                  onBlur={() => handleOpenvikingUrl(openvikingUrl)}
+                  placeholder="http://localhost:1933"
+                  className="font-mono text-xs"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium">Memory User</p>
+                <Input
+                  value={openvikingUser}
+                  onChange={(e) => setOpenvikingUser(e.target.value)}
+                  onBlur={() => handleOpenvikingUser(openvikingUser)}
+                  placeholder="hermes"
+                  className="font-mono text-xs"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </Card>
 

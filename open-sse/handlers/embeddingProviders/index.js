@@ -17,7 +17,7 @@ const ADAPTERS = {
 
 export function getEmbeddingAdapter(provider) {
   if (ADAPTERS[provider]) return ADAPTERS[provider];
-  if (provider?.startsWith?.("openai-compatible-") || provider?.startsWith?.("custom-embedding-")) {
+  if (provider?.startsWith?.("openai-compatible") || provider?.startsWith?.("custom-embedding")) {
     return openaiCompatNode;
   }
   return null;

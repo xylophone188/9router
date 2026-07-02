@@ -29,4 +29,5 @@ export const PONYTAIL_LEVELS = [
   { id: "lite", label: "Lite", desc: "Build asked, name lazier option" },
   { id: "full", label: "Full", desc: "Ladder enforced: stdlib/native first" },
   { id: "ultra", label: "Ultra", desc: "YAGNI extremist, deletion first" },
+  { id: "review", label: "Review", desc: "Read-only: analyze, don't write code" },
 ];
