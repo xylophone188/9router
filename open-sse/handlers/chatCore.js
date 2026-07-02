@@ -214,7 +214,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   } catch (e) { /* fail open — OpenViking is optional */ }
 
   // Rate limit + budget pre-check
-  const apiKey = credentials?.apiKey || "";
+  const quotaApiKey = credentials?.apiKey || "";
   try {
     const { preRequestCheck } = await import("../rtk/rateQuota.js");
     // Read quota/budget settings from DB
@@ -235,7 +235,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
         estimatedCost: 0,
       },
     };
-    const preCheck = preRequestCheck(apiKey, quotaConfig);
+    const preCheck = preRequestCheck(quotaApiKey, quotaConfig);
     if (!preCheck.allowed) {
       log?.warn?.("QUOTA", `${preCheck.status} ${preCheck.error}`);
       return { status: preCheck.status, error: preCheck.error, retryAfter: preCheck.retryAfter, headers: {} };
