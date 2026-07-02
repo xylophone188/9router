@@ -31,6 +31,8 @@ export default function TokenSaverClient() {
   const [openvikingEnabled, setOpenvikingEnabled] = useState(false);
   const [openvikingUrl, setOpenvikingUrl] = useState("http://localhost:1933");
   const [openvikingUser, setOpenvikingUser] = useState("hermes");
+  const [openvikingApiKey, setOpenvikingApiKey] = useState("");
+  const [openvikingSkipModels, setOpenvikingSkipModels] = useState("vlm,embed,rerank,whisper,vl");
   const [rateLimitMaxReqs, setRateLimitMaxReqs] = useState(0);
   const [rateLimitMaxTokens, setRateLimitMaxTokens] = useState(0);
   const [budgetDaily, setBudgetDaily] = useState(0);
@@ -174,6 +176,14 @@ export default function TokenSaverClient() {
     setOpenvikingUser(user);
     patchSetting({ openvikingUser: user });
   };
+  const handleOpenvikingApiKey = (val) => {
+    setOpenvikingApiKey(val);
+    patchSetting({ openvikingApiKey: val });
+  };
+  const handleOpenvikingSkipModels = (val) => {
+    setOpenvikingSkipModels(val);
+    patchSetting({ openvikingSkipModels: val });
+  };
 
   const handleRateLimitReqs = (val) => {
     setRateLimitMaxReqs(Number(val));
@@ -212,6 +222,8 @@ export default function TokenSaverClient() {
           setOpenvikingEnabled(!!data.openvikingEnabled);
           if (data.openvikingUrl) setOpenvikingUrl(data.openvikingUrl);
           if (data.openvikingUser) setOpenvikingUser(data.openvikingUser);
+          if (data.openvikingApiKey) setOpenvikingApiKey(data.openvikingApiKey);
+          if (data.openvikingSkipModels) setOpenvikingSkipModels(data.openvikingSkipModels);
           if (data.rateLimitMaxRequests) setRateLimitMaxReqs(data.rateLimitMaxRequests);
           if (data.rateLimitMaxTokens) setRateLimitMaxTokens(data.rateLimitMaxTokens);
           if (data.budgetDaily) setBudgetDaily(data.budgetDaily);
@@ -445,6 +457,28 @@ export default function TokenSaverClient() {
                   onChange={(e) => setOpenvikingUser(e.target.value)}
                   onBlur={() => handleOpenvikingUser(openvikingUser)}
                   placeholder="hermes"
+                  className="font-mono text-xs"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium">API Key</p>
+                <Input
+                  type="password"
+                  value={openvikingApiKey}
+                  onChange={(e) => setOpenvikingApiKey(e.target.value)}
+                  onBlur={() => handleOpenvikingApiKey(openvikingApiKey)}
+                  placeholder="base64 api key"
+                  className="font-mono text-xs"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-medium">Skip Models (comma-separated)</p>
+                <p className="text-xs text-text-muted">Dead-loop prevention: models that skip OV injection</p>
+                <Input
+                  value={openvikingSkipModels}
+                  onChange={(e) => setOpenvikingSkipModels(e.target.value)}
+                  onBlur={() => handleOpenvikingSkipModels(openvikingSkipModels)}
+                  placeholder="vlm,embed,rerank,whisper,vl"
                   className="font-mono text-xs"
                 />
               </div>

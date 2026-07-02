@@ -12,6 +12,7 @@ const RATE_WINDOW_MS = 60_000; // 1min sliding window
 
 function checkRateLimit(key, maxRequests, maxTokens) {
   if (!key) return { allowed: true };
+  if (!maxRequests && !maxTokens) return { allowed: true };
   const now = Date.now();
   const windowStart = now - RATE_WINDOW_MS;
   

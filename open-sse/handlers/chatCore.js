@@ -202,6 +202,8 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
       account: process.env.OPENVIKING_ACCOUNT || "default",
       user: process.env.OPENVIKING_USER || "shared",
       agent: process.env.OPENVIKING_AGENT || "9router",
+      // Read skipModels from DB (configurable via Web UI), fallback to env/patterns
+      skipModels: process.env.OPENVIKING_SKIP_MODELS || "vlm,embed,rerank,whisper,vl",
       limit: 5,
       scoreThreshold: 0.3,
     };

@@ -214,18 +214,13 @@ export async function injectOpenVikingMemory(body, format, opts) {
   if (!Array.isArray(messages) || messages.length === 0) return null;
   
   // Skip if model name matches known OpenViking internal request patterns.
-  // OV's embedding/reranker/VLM all go through 9router for routing.
-  // To prevent OV→9router→OV dead loop, skip OV for these model name patterns.
+  // The skip list is configurable via Web UI (token-saver → OV → Skip Models).
+  // Default: vlm,embed,rerank,whisper,vl — covers OV's internal VLM/embedding/reranker/audio models.
   const model = (body?.model || "").toLowerCase();
-  if (
-    model.includes("embed") ||
-    model.includes("rerank") ||
-    model.includes("vlm") ||
-    model.includes("qwen3-embedding") ||
-    model.includes("qwen3-rerank") ||
-    model.includes("whisper") ||        // OV's audio transcription
-    model.includes("vl")                 // generic vision-language short names
-  ) return null;
+  const skipPatterns = (opts.skipModels || "vlm,embed,rerank,whisper,vl").toLowerCase().split(/[,\s]+/).filter(Boolean);
+  for (const pat of skipPatterns) {
+    if (pat && model.includes(pat)) return null;
+  }
   
   // Extract user query — only inject for meaningful user messages
   const query = extractUserQuery(body);
